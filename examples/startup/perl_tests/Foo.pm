@@ -1,5 +1,7 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl
+
 package Foo;
+
 sub bar {
   print "Hello $_[0]\n"
 }
