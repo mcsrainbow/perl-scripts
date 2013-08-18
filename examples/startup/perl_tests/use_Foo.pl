@@ -1,6 +1,10 @@
 #!/usr/bin/perl 
+#require Foo;
 
-require Foo;
+#Foo::bar( "a" );
+#Foo::blat( "b" );
 
-Foo::bar( "a" );
-Foo::blat( "b" );
+use Foo;
+
+bar( "a" );
+blat( "b" );

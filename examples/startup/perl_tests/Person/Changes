@@ -1,0 +1,6 @@
+Revision history for Perl extension Person.
+
+0.01  Sun Aug 18 09:46:51 2013
+	- original version; created by h2xs 1.23 with options
+		-AX -n Person
+
