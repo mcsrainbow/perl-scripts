@@ -3,4 +3,7 @@
 use strict;
 use warnings;
 
-print "Hello, world\n";
+require Foo;
+
+Foo::bar("a");
+Foo::blat("b");
