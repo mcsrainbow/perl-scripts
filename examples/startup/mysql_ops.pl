@@ -6,7 +6,7 @@ use warnings;
 
 # Connect
 my $driver = "mysql";
-my $database = "TESTDB";
+my $database = "testdb";
 my $hostname = "localhost";
 my $socket = "/opt/mysql/run/mysqld.sock";
 my $autocommit = "0";
@@ -23,8 +23,8 @@ my $age = 30;
 my $income = 13000;
 
 # Insert
-my $sth = $dbh->prepare("INSERT IGNORE INTO TEST_TABLE
-                        (FIRST_NAME,LAST_NAME,SEX,AGE,INCOME)
+my $sth = $dbh->prepare("INSERT IGNORE INTO test_table
+                        (first_name,last_name,sex,age,income)
                          values
                         (?,?,?,?,?)");
 $sth->execute($first_name,$last_name,$sex,$age,$income) 
@@ -34,43 +34,39 @@ $dbh->commit or die $DBI::errstr;
 
 # Read
 $age = 29;
-$sth = $dbh->prepare("SELECT FIRST_NAME,LAST_NAME
-                         FROM TEST_TABLE
-                         WHERE AGE > ?");
+$sth = $dbh->prepare("SELECT first_name,last_name
+                         FROM test_table
+                         WHERE age > ?");
 $sth->execute( $age ) or die $DBI::errstr;
-print "Number of rows found: " ;
-print $sth->rows;
+print "Number of rows found: " . $sth->rows . "\n";
 while (my @row = $sth->fetchrow_array()) {
   my ($first_name, $last_name ) = @row;
-  print "\nFirst Name = $first_name, Last Name = $last_name";
+  print "First Name = $first_name, Last Name = $last_name" . "\n";
 }
 $sth->finish();
 
 # Update
 $sex = 'M';
 $income = 10000;
-$sth = $dbh->prepare("UPDATE TEST_TABLE
-                         SET INCOME = ?
-                         WHERE SEX = ?");
+$sth = $dbh->prepare("UPDATE test_table
+                         SET income = ?
+                         WHERE sex = ?");
 $sth->execute( $income, $sex ) or die $DBI::errstr;
-print "\nNumber of rows updated: ";
-print $sth->rows;
+print "Number of rows updated: " . $sth->rows . "\n";
 $sth->finish();
 $dbh->commit or die $DBI::errstr;
 
 # Delete
 $age = 30;
-$sth = $dbh->prepare("DELETE FROM TEST_TABLE
-                         WHERE AGE = ?");
+$sth = $dbh->prepare("DELETE FROM test_table
+                         WHERE age = ?");
 $sth->execute( $age ) or die $DBI::errstr;
-print "\nNumber of rows deleted: ";
-print $sth->rows;
-print "\n";
+print "Number of rows deleted: " . $sth->rows . "\n";
 $sth->finish();
 #$dbh->commit or die $DBI::errstr;
 
 # Do
-#$dbh->do("DELETE FROM TEST_TABLE WHERE age = 30");
+#$dbh->do("DELETE FROM test_table WHERE age = 30");
 
 # Rollback
 $dbh->rollback or die $dbh->errstr;
