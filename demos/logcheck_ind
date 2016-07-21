@@ -91,7 +91,6 @@ sub getFileModifiedTime
 sub readWholeFile
 {
     my $file = shift;
-
     my $fh = getFileHandle($file);
 
     #read all lines
@@ -290,7 +289,7 @@ sub parseLogFile
     close($fh);
     my $output="";
     my $critical=0;
-        my $warn=0;
+    my $warn=0;
 
     foreach my $target (keys %{$cfg{$filename}})
     {
@@ -337,9 +336,9 @@ sub processLogFile
     }
         elsif ( -z $filename)
         {
-                my $date = `date`;
-                print "Logcheck_$filename - OK: $filename is empty at $date";
-                return;
+            my $date = `date`;
+            print "Logcheck_$filename - OK: $filename is empty at $date";
+            return;
         }
     else
     {
@@ -386,7 +385,7 @@ sub processLogFile
         if ($lastpos >= 1)
         {
             seek($fh, $lastpos, 0) or
-             die "Couldn't seek to $lastpos of $filename: $!\n"; 
+            die "Couldn't seek to $lastpos of $filename: $!\n"; 
             $readpos = parseLogFile($fh, $filename, $cfg_href); 
             $$state_href{$filename}{lastpos} = $readpos;
             return; 
@@ -397,11 +396,10 @@ sub processLogFile
     #whole file (b/c new entry or file got rotated or lastpos got reset)
     $readpos = parseLogFile($fh, $filename, $cfg_href);
 
-
     if(exists($$state_href{$filename}))
     {
-         $$state_href{$filename}{lastpos} = $readpos;
-         $$state_href{$filename}{inode} = $cur_inode;
+        $$state_href{$filename}{lastpos} = $readpos;
+        $$state_href{$filename}{inode} = $cur_inode;
     }
     else
     {
