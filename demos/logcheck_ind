@@ -4,7 +4,7 @@
 # Date:   December 20, 2013 
 # Version: 0.2
 # 
-# <cfg_file_name>.cfg
+# <cfg_file_name>
 # Patterns are indented with one space are prefixed with.  There can be more than 1 pattern
 # of the same condition.  There can also be more than one file for the same set of conditions
 #  c: Critical messages
