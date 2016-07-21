@@ -1,0 +1,455 @@
+#!/usr/bin/env perl
+
+# Author:  ST
+# Date:   December 20, 2013 
+# Version: 0.2
+# 
+# <cfg_file_name>.cfg
+# Patterns are indented with one space are prefixed with.  There can be more than 1 pattern
+# of the same condition.  There can also be more than one file for the same set of conditions
+#  c: Critical messages
+#  w: Warning messages
+#  i: ignore these lines (OK)
+#  First check for ignore
+#  Next check for critical, if found continue to next line
+#  Last check for warning
+#
+#  <cfg_file_name>.state is created by this script, possible more than 1 line
+#  filename,last_read_pos,inode_of_file
+
+# Version 0.2: Condition can be c:5 where 5 is the number of times the script found during a run. 
+# If the string found at least that many times then the condition is applied.
+#
+# Updated by Dong Guo at 20160721 for nagios
+
+use strict;
+use warnings;
+
+use File::stat;
+use Getopt::Std;
+use Data::Dumper;
+$Data::Dumper::Indent = 1;
+
+require Exporter;
+
+our $VERSION = '0.01';
+our $RC=0;
+
+sub getReadFileHandle
+{
+    my $file = shift;
+    open(my $fh,"<" , $file) or die "Can't open $file for reading: $!";
+    return $fh;
+}
+
+sub getWriteFileHandle
+{
+    my $file = shift;
+    open(my $fh,">" , $file) or die "Can't open $file for writing: $!";
+    return $fh;
+}
+
+sub getAppendFileHandle
+{
+    my $file = shift;
+    open(my $fh,">>" , $file) or die "Can't open $file for appending: $!";
+    return $fh;
+}
+
+sub getFileInode 
+{
+    my $file = shift;
+    my $st = stat($file) or die "Can't get inode for $file: $!";
+    
+    return $st->ino;
+}
+
+sub getFileSize
+{
+    my $file = shift;
+    my $st = stat($file) or die "Can't get filesize for $file: $!";
+    
+    return $st->size;
+}
+
+sub getFileAccessTime
+{
+    my $file = shift;
+    my $st = stat($file) or die "Can't get access time for $file: $!";
+
+    return $st->atime;
+}
+
+sub getFileModifiedTime
+{
+    my $file = shift;
+    my $st = stat($file) or die "Can't get modified time for $file: $!";
+
+    return $st->mtime;
+}
+
+sub readWholeFile
+{
+    my $file = shift;
+
+    my $fh = getFileHandle($file);
+
+    #read all lines
+    my @lines = do { local$/ = undef; <$fh> }; 
+
+    return \@lines; 
+}
+
+sub updateStateFile
+{
+    my ($file, $cfg_ref, $hash_ref) = @_;
+    my $fh = getWriteFileHandle($file);
+
+    foreach my $filename (sort keys %{$hash_ref})
+    {
+        if (exists($$cfg_ref{$filename}))
+        {
+            print $fh "$filename,$$hash_ref{$filename}{lastpos},$$hash_ref{$filename}{inode}\n";
+        }
+        else 
+        {
+            delete $$hash_ref{$filename},
+        }       
+    }   
+    close($fh);
+}
+
+sub readStateFile
+{
+    my $file = shift;
+    my $fh = getReadFileHandle($file);
+    my @cols = qw(filename lastpos inode);
+    my %statuses;
+
+    while(<$fh>)
+    {
+        chomp;
+        @cols = split /,/;
+        next if @cols != 3;
+
+        #hash{filename} =  { lastpos => pos, inode => ino }
+        $statuses{$cols[0]} = { lastpos => $cols[1], 
+                    inode   => $cols[2], };
+    }
+    close($fh);
+
+    return \%statuses;      
+}
+
+sub readConfigFile
+{
+    my $file = shift;
+    my %cfg = ();
+    my  @file_list;
+    my $fh = getReadFileHandle($file);
+    
+    while (<$fh>)
+    { 
+        chomp;
+        next if m/^#/;
+    
+        if (m/^\s([\w:]+)\s+(.*\b)/)    
+        {
+            my $len=length($1);
+            #no count specified => 1 time found
+            my $count=1;
+            my $cond;
+
+            if ($len == 1 )
+            {
+                $cond = lc($1); #convert cond to lowercase
+            }
+            elsif ($len > 1 )
+            {
+                my $temp = lc($1);
+                my @cond1 = split(':', $temp);
+                $count = $cond1[1];
+                                $cond = $cond1[0];
+            }
+
+            if ($len < 1 || $count < 1)
+            {
+                print "ERROR: Invalid condition construction\n";
+                $RC = 3;
+                next;
+            }
+
+            my $string = $2;
+    
+            if ($cond !~ m/c|w|i/)
+            {   
+                print "ERROR: Invalid $cond for $file\n";
+                $RC = 3;
+                next;
+            }
+
+            #Future improvement: need to handle this invalid better
+
+            #file_list has at least 1 entry
+            foreach my $file (@file_list)
+            {
+                if(exists($cfg{$file}{$string}))
+                {
+                    #add string to array of condition
+                    #push(@{$cfg{$file}{$string}}, [$cond, $count]);
+                    #replace duplicate 
+                    $cfg{$file}{$string} =  [$cond, $count];
+                    print "I am here\n";
+                }
+                else
+                {
+                    #create anonymous array 
+                    $cfg{$file}{$string} =  [$cond, $count];
+                }               
+            }   
+        }
+        elsif (m/^(\/[\w-]+)+/) 
+        {
+            #split the line by spaces
+            @file_list = split /\s/;
+        }       
+    }#end while
+    
+    close($fh);
+    #hash{filename} = hash{c|w|i} each point to arrays of strings
+
+    return \%cfg;   
+}
+
+sub buildRegex
+{
+    my ($filename, $cfg_href) = @_;
+    my %cfg = %$cfg_href;
+    my %regex;
+
+    foreach my $cond (sort keys %{$cfg{$filename}})
+    {
+        foreach  ( @{$cfg{$filename}{$cond}} )
+        {
+            if (exists($regex{$cond}))
+            {
+                $regex{$cond} .= "|$_";
+            }
+            else 
+            {
+                $regex{$cond} = $_;
+            }
+        }
+    }
+
+    return \%regex;
+}
+
+sub parseLogFile
+{
+    my ($fh, $filename, $cfg_href) = @_;
+    my ($crit_count, $warn_count) = (0, 0);
+    
+    my %cfg = %$cfg_href;
+    #my $regex_href = buildRegex($filename, \%cfg);
+    my $readpos = tell($fh); 
+    my %result = ();
+
+    #Have to initialize in order to compare when nothing matches
+    foreach my $target (keys %{$cfg{$filename}})
+    {
+        $result{$target} = 0;
+    }
+
+    while(<$fh>)
+    {
+        chomp;  
+
+        foreach my $target (keys %{$cfg{$filename}})
+        {
+            if (m/$target/)
+            {
+                if (@{$cfg{$filename}{$target}}[0] =~ 'i')
+                {
+                    last;
+                }
+                elsif (@{$cfg{$filename}{$target}}[0] =~ 'c')
+                {
+                    $result{$target} += 1;                  
+                }
+                elsif (@{$cfg{$filename}{$target}}[0] =~ 'w')
+                {
+                    $result{$target} += 1;                  
+                }
+            }
+        }   
+        
+          $readpos = tell ($fh);
+    }
+    
+    close($fh);
+    my $output="";
+    my $critical=0;
+        my $warn=0;
+
+    foreach my $target (keys %{$cfg{$filename}})
+    {
+        if($result{$target} >= @{$cfg{$filename}{$target}}[1]  && @{$cfg{$filename}{$target}}[0] =~ 'c')
+        {
+            $output = "$output Found Critical '$target' $result{$target} times;";       
+            $critical++;    
+        }
+        elsif ($result{$target} >= @{$cfg{$filename}{$target}}[1] && @{$cfg{$filename}{$target}}[0] =~ 'w')
+        {
+            $output = "$output Found Warning '$target' $result{$target} times;";        
+            $warn++;
+        }
+    }
+
+    
+    if ($critical > 0)
+    {
+        print "Logcheck_$filename - CRITICAL:$output\n";
+        $RC = 2;
+    }
+    elsif ($warn > 0)
+    {
+        print "Logcheck_$filename - WARNING:$output\n";
+        if ($RC < 2){$RC = 1;};
+    }
+    else
+    {
+        #OK
+        print "Logcheck_$filename - OK: Found nothing of interest\n";  
+    }
+    return $readpos;
+}
+
+sub processLogFile
+{
+    my ($filename, $cfg_href, $state_href) = @_;
+    my ($cur_inode, $fh);
+
+    if ( -s $filename)
+    {
+        $cur_inode = getFileInode($filename);
+        $fh = getReadFileHandle($filename);
+    }
+        elsif ( -z $filename)
+        {
+                my $date = `date`;
+                print "Logcheck_$filename - OK: $filename is empty at $date";
+                return;
+        }
+    else
+    {
+        sleep(5);
+        if ( -s $filename)
+        {
+            $cur_inode = getFileInode($filename);
+            $fh = getReadFileHandle($filename);
+        }
+        else
+        {
+            my $date = `date`;
+            print "Logcheck_$filename - CRITICAL: Can not open $filename at $date\n";
+            $RC = 2;
+            return;
+        }
+    }
+        
+    my ($readpos, $lastpos, $inode);
+
+
+    if (%$state_href) #hash is not empty
+    {
+        if(exists($$state_href{$filename}))
+        {
+            $lastpos = $$state_href{$filename}{lastpos};
+            $inode = $$state_href{$filename}{inode};
+
+        }
+        else #new entry in config file
+        {
+            $lastpos = 0;
+            $inode = -1;    
+        }
+    }
+    else #no previous state 
+    {
+        $lastpos = 0;
+        $inode = -1;    
+    }
+
+    if ($cur_inode == $inode)
+    {
+        if ($lastpos >= 1)
+        {
+            seek($fh, $lastpos, 0) or
+             die "Couldn't seek to $lastpos of $filename: $!\n"; 
+            $readpos = parseLogFile($fh, $filename, $cfg_href); 
+            $$state_href{$filename}{lastpos} = $readpos;
+            return; 
+        }
+        #else lastpos got reset
+    }
+    
+    #whole file (b/c new entry or file got rotated or lastpos got reset)
+    $readpos = parseLogFile($fh, $filename, $cfg_href);
+
+
+    if(exists($$state_href{$filename}))
+    {
+         $$state_href{$filename}{lastpos} = $readpos;
+         $$state_href{$filename}{inode} = $cur_inode;
+    }
+    else
+    {
+        $$state_href{$filename} = { lastpos => $readpos,
+                              inode => $cur_inode, };
+    }
+
+}
+
+sub processAllLogFiles
+{
+    my $cfg_file = $ARGV[0];
+    if (!$cfg_file){
+        print "UNKNOWN - Please provide a configuration file as the parameter\n";
+        $RC = 3;
+        exit $RC;
+    }
+    my @cfg_file_fields = split('/',$cfg_file);
+    my $cfg_file_name = $cfg_file_fields[-1];
+    my $state_file = "/var/tmp/$cfg_file_name.state";
+
+    my $state_href = ();
+    my $cfg;
+
+    if ( -s $state_file )
+    {
+        $state_href = readStateFile($state_file);
+    }
+
+    if ( -s $cfg_file )
+    {
+        $cfg = readConfigFile($cfg_file);
+    }
+    else
+    {
+        my $date = `date`;
+        print "Logcheck - CRITICAL Could not open $cfg_file for reading at $date\n";
+        $RC = 2;
+        exit $RC;
+    }
+
+    foreach my $file (sort keys %$cfg)
+    {
+        processLogFile($file, \%$cfg, \%$state_href);   
+    }
+
+    updateStateFile($state_file, \%$cfg, \%$state_href);    
+}
+
+processAllLogFiles();
+exit $RC;
