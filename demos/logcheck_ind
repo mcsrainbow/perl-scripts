@@ -16,7 +16,7 @@
 #
 #  <cfg_file_name>.state is created by this script, possible more than 1 line
 #  filename,last_read_pos,inode_of_file
-
+#
 # Version 0.2: Condition can be c:5 where 5 is the number of times the script found during a run. 
 # If the string found at least that many times then the condition is applied.
 #
@@ -144,7 +144,7 @@ sub readConfigFile
 {
     my $file = shift;
     my %cfg = ();
-    my  @file_list;
+    my @file_list;
     my $fh = getReadFileHandle($file);
     
     while (<$fh>)
@@ -168,7 +168,7 @@ sub readConfigFile
                 my $temp = lc($1);
                 my @cond1 = split(':', $temp);
                 $count = $cond1[1];
-                                $cond = $cond1[0];
+                $cond = $cond1[0];
             }
 
             if ($len < 1 || $count < 1)
@@ -404,7 +404,7 @@ sub processLogFile
     else
     {
         $$state_href{$filename} = { lastpos => $readpos,
-                              inode => $cur_inode, };
+                                    inode => $cur_inode, };
     }
 
 }
