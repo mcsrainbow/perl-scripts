@@ -387,7 +387,7 @@ sub processLogFile
         if ($lastpos >= 1)
         {
             seek($fh, $lastpos, 0) or
-            die "Couldn't seek to $lastpos of $filename: $!\n"; 
+            die "ERROR: Couldn't seek to $lastpos of $filename: $!\n"; 
             $readpos = parseLogFile($fh, $filename, $cfg_href); 
             $$state_href{$filename}{lastpos} = $readpos;
             return; 
