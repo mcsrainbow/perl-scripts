@@ -21,6 +21,9 @@
 #
 # Updated by Dong Guo at 20160721 for Nagios
 #
+# Remember to add "set backupcopy=yes" in /etc/vimrc.
+# To aviod the vim to change the inode of log file when quit with :wq.
+#
 
 use strict;
 use warnings;
