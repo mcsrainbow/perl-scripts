@@ -19,7 +19,7 @@
 # Version 0.2: Condition can be C:5 where 5 is the number of times the script found during a run. 
 # If the string found at least that many times then the condition is applied.
 #
-# Updated by Dong Guo at 20160721 for Nagios
+# Updated by Dong Guo for Nagios 2016/07/21
 #
 # Remember to add "set backupcopy=yes" in /etc/vimrc.
 # To aviod the vim to change the inode of log file when quit with :wq.
