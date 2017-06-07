@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # Author:  ST
-# Date:   December 20, 2013 
+# Date:    December 20, 2013 
 # Version: 0.2
 # 
 # Patterns are indented with one space are prefixed with.
@@ -12,6 +12,10 @@
 #  C: critical messages
 #  W: warning messages
 #  I: ignore these lines (OK)
+#
+#  First check for ignore
+#  Next check for critical, if found continue to next line
+#  Last check for warning
 #
 # /var/tmp/${cfg_file_name}.state is created by this script, possible more than 1 line in the content:
 # filename,last_read_pos,inode_of_file
