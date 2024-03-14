@@ -1,9 +1,9 @@
 #!/usr/bin/env perl
 
 # Author:  ST
-# Date:    December 20, 2013 
+# Date:    December 20, 2013
 # Version: 0.2
-# 
+#
 # Patterns are indented with one space are prefixed with.
 # There can be more than 1 pattern of the same condition.
 # There can also be more than one file for the same set of conditions.
@@ -63,11 +63,11 @@ sub getAppendFileHandle
     return $fh;
 }
 
-sub getFileInode 
+sub getFileInode
 {
     my $file = shift;
     my $st = stat($file) or die "ERROR: Can't get inode for $file: $!";
-    
+
     return $st->ino;
 }
 
@@ -75,7 +75,7 @@ sub getFileSize
 {
     my $file = shift;
     my $st = stat($file) or die "ERROR: Can't get filesize for $file: $!";
-    
+
     return $st->size;
 }
 
@@ -101,9 +101,9 @@ sub readWholeFile
     my $fh = getFileHandle($file);
 
     # read all lines
-    my @lines = do { local$/ = undef; <$fh> }; 
+    my @lines = do { local$/ = undef; <$fh> };
 
-    return \@lines; 
+    return \@lines;
 }
 
 sub updateStateFile
@@ -117,11 +117,11 @@ sub updateStateFile
         {
             print $fh "$filename,$$hash_ref{$filename}{lastpos},$$hash_ref{$filename}{inode}\n";
         }
-        else 
+        else
         {
             delete $$hash_ref{$filename},
-        }       
-    }   
+        }
+    }
     close($fh);
 }
 
@@ -139,12 +139,12 @@ sub readStateFile
         next if @cols != 3;
 
         #hash{filename} =  { lastpos => pos, inode => ino }
-        $statuses{$cols[0]} = { lastpos => $cols[1], 
+        $statuses{$cols[0]} = { lastpos => $cols[1],
                     inode   => $cols[2], };
     }
     close($fh);
 
-    return \%statuses;      
+    return \%statuses;
 }
 
 sub readConfigFile
@@ -153,13 +153,13 @@ sub readConfigFile
     my %cfg = ();
     my @file_list;
     my $fh = getReadFileHandle($file);
-    
+
     while (<$fh>)
-    { 
+    {
         chomp;
         next if m/^#/;
-    
-        if (m/^\s([\w:]+)\s+(.*\b)/)    
+
+        if (m/^\s([\w:]+)\s+(.*\b)/)
         {
             my $len=length($1);
             # no count specified => 1 time found
@@ -186,9 +186,9 @@ sub readConfigFile
             }
 
             my $string = $2;
-    
+
             if ($cond !~ m/c|w|i/)
-            {   
+            {
                 print "ERROR: Invalid $cond for $file\n";
                 $RC = 3;
                 next;
@@ -203,30 +203,30 @@ sub readConfigFile
                 {
                     # add string to array of condition
                     #push(@{$cfg{$file}{$string}}, [$cond, $count]);
-                    
-                    # replace duplicate 
+
+                    # replace duplicate
                     $cfg{$file}{$string} =  [$cond, $count];
                     print "I am here\n";
                 }
                 else
                 {
-                    # create anonymous array 
+                    # create anonymous array
                     $cfg{$file}{$string} =  [$cond, $count];
-                }               
-            }   
+                }
+            }
         }
-        elsif (m/^(\/[\w-]+)+/) 
+        elsif (m/^(\/[\w-]+)+/)
         {
             # split the line by spaces
             @file_list = split /\s/;
-        }       
+        }
     }
     # end while
-    
+
     close($fh);
     # hash{filename} = hash{c|w|i} each point to arrays of strings
 
-    return \%cfg;   
+    return \%cfg;
 }
 
 sub buildRegex
@@ -243,7 +243,7 @@ sub buildRegex
             {
                 $regex{$cond} .= "|$_";
             }
-            else 
+            else
             {
                 $regex{$cond} = $_;
             }
@@ -257,10 +257,10 @@ sub parseLogFile
 {
     my ($fh, $filename, $cfg_href) = @_;
     my ($crit_count, $warn_count) = (0, 0);
-    
+
     my %cfg = %$cfg_href;
     #my $regex_href = buildRegex($filename, \%cfg);
-    my $readpos = tell($fh); 
+    my $readpos = tell($fh);
     my %result = ();
 
     # have to initialize in order to compare when nothing matches
@@ -271,7 +271,7 @@ sub parseLogFile
 
     while(<$fh>)
     {
-        chomp;  
+        chomp;
 
         foreach my $target (keys %{$cfg{$filename}})
         {
@@ -283,18 +283,18 @@ sub parseLogFile
                 }
                 elsif (@{$cfg{$filename}{$target}}[0] =~ 'c')
                 {
-                    $result{$target} += 1;                  
+                    $result{$target} += 1;
                 }
                 elsif (@{$cfg{$filename}{$target}}[0] =~ 'w')
                 {
-                    $result{$target} += 1;                  
+                    $result{$target} += 1;
                 }
             }
-        }   
-        
+        }
+
           $readpos = tell ($fh);
     }
-    
+
     close($fh);
     my $output="";
     my $critical=0;
@@ -304,17 +304,17 @@ sub parseLogFile
     {
         if($result{$target} >= @{$cfg{$filename}{$target}}[1]  && @{$cfg{$filename}{$target}}[0] =~ 'c')
         {
-            $output = "$output Found Critical '$target' $result{$target} times;";       
-            $critical++;    
+            $output = "$output Found Critical '$target' $result{$target} times;";
+            $critical++;
         }
         elsif ($result{$target} >= @{$cfg{$filename}{$target}}[1] && @{$cfg{$filename}{$target}}[0] =~ 'w')
         {
-            $output = "$output Found Warning '$target' $result{$target} times;";        
+            $output = "$output Found Warning '$target' $result{$target} times;";
             $warn++;
         }
     }
 
-    
+
     if ($critical > 0)
     {
         print "Logcheck_$filename - CRITICAL:$output\n";
@@ -328,7 +328,7 @@ sub parseLogFile
     else
     {
         # OK
-        print "Logcheck_$filename - OK: Found nothing of interest\n";  
+        print "Logcheck_$filename - OK: Found nothing of interest\n";
     }
     return $readpos;
 }
@@ -365,7 +365,7 @@ sub processLogFile
             return;
         }
     }
-        
+
     my ($readpos, $lastpos, $inode);
 
 
@@ -380,13 +380,13 @@ sub processLogFile
         else # new entry in config file
         {
             $lastpos = 0;
-            $inode = -1;    
+            $inode = -1;
         }
     }
-    else # no previous state 
+    else # no previous state
     {
         $lastpos = 0;
-        $inode = -1;    
+        $inode = -1;
     }
 
     if ($cur_inode == $inode)
@@ -394,14 +394,14 @@ sub processLogFile
         if ($lastpos >= 1)
         {
             seek($fh, $lastpos, 0) or
-            die "ERROR: Couldn't seek to $lastpos of $filename: $!\n"; 
-            $readpos = parseLogFile($fh, $filename, $cfg_href); 
+            die "ERROR: Couldn't seek to $lastpos of $filename: $!\n";
+            $readpos = parseLogFile($fh, $filename, $cfg_href);
             $$state_href{$filename}{lastpos} = $readpos;
-            return; 
+            return;
         }
         # else lastpos got reset
     }
-    
+
     # whole file (b/c new entry or file got rotated or lastpos got reset)
     $readpos = parseLogFile($fh, $filename, $cfg_href);
 
@@ -452,10 +452,10 @@ sub processAllLogFiles
 
     foreach my $file (sort keys %$cfg)
     {
-        processLogFile($file, \%$cfg, \%$state_href);   
+        processLogFile($file, \%$cfg, \%$state_href);
     }
 
-    updateStateFile($state_file, \%$cfg, \%$state_href);    
+    updateStateFile($state_file, \%$cfg, \%$state_href);
 }
 
 processAllLogFiles();
